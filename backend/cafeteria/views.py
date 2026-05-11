@@ -5,9 +5,13 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.db import transaction
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Count
 from django.utils.dateparse import parse_date
-from datetime import datetime, timedelta
+from django.shortcuts import redirect
+from django.conf import settings
+
+import requests
+import urllib.parse
 
 from .models import Usuario, Producto, Pedido, ItemPedido, Pago, QRToken
 from .serializers import (
@@ -17,9 +21,8 @@ from .serializers import (
 )
 
 
-# ─── Permiso personalizado: empleados y admins ────────────────────────────────
+# ─── Permiso personalizado ────────────────────────────────────────────────────
 class IsEmpleadoOrAdmin(permissions.BasePermission):
-    """Permite acceso a usuarios con rol='empleado' o is_staff=True."""
     def has_permission(self, request, view):
         return bool(
             request.user and request.user.is_authenticated and
@@ -27,7 +30,7 @@ class IsEmpleadoOrAdmin(permissions.BasePermission):
         )
 
 
-# ─── AUTH ─────────────────────────────────────────────────────────────────────
+# ─── AUTH NORMAL ──────────────────────────────────────────────────────────────
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -49,14 +52,12 @@ class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        # Si viene rol=empleado, validamos que venga id_empleado
         rol = request.data.get('rol', 'alumno')
         if rol == 'empleado' and not request.data.get('id_empleado', '').strip():
             return Response(
                 {'id_empleado': ['El ID de empleado es obligatorio para empleados.']},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
         serializer = UsuarioSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
@@ -67,6 +68,101 @@ class RegisterView(APIView):
                 'user':    UsuarioSerializer(user, context={'request': request}).data
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ─── GOOGLE SSO ───────────────────────────────────────────────────────────────
+class GoogleLoginRedirectView(APIView):
+    """
+    GET /api/auth/google/
+    Redirige al usuario a la pantalla de consentimiento de Google.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        params = {
+            'client_id':     settings.GOOGLE_CLIENT_ID,
+            'redirect_uri':  settings.GOOGLE_REDIRECT_URI,
+            'response_type': 'code',
+            'scope':         'openid email profile',
+            'access_type':   'offline',
+            'prompt':        'select_account',
+        }
+        url = 'https://accounts.google.com/o/oauth2/v2/auth?' + urllib.parse.urlencode(params)
+        return redirect(url)
+
+
+class GoogleCallbackView(APIView):
+    """
+    GET /api/auth/google/callback/
+    Google redirige aquí con un code. Lo intercambiamos por tokens,
+    creamos o recuperamos el usuario y redirigimos al frontend con JWT.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        code = request.GET.get('code')
+        if not code:
+            return redirect(f"{settings.FRONTEND_URL}/?error=google_auth_failed")
+
+        # 1. Intercambiar code por access_token de Google
+        token_resp = requests.post('https://oauth2.googleapis.com/token', data={
+            'code':          code,
+            'client_id':     settings.GOOGLE_CLIENT_ID,
+            'client_secret': settings.GOOGLE_CLIENT_SECRET,
+            'redirect_uri':  settings.GOOGLE_REDIRECT_URI,
+            'grant_type':    'authorization_code',
+        })
+
+        if not token_resp.ok:
+            return redirect(f"{settings.FRONTEND_URL}/?error=google_token_failed")
+
+        access_token = token_resp.json().get('access_token')
+
+        # 2. Obtener datos del usuario desde Google
+        userinfo_resp = requests.get(
+            'https://www.googleapis.com/oauth2/v3/userinfo',
+            headers={'Authorization': f'Bearer {access_token}'}
+        )
+
+        if not userinfo_resp.ok:
+            return redirect(f"{settings.FRONTEND_URL}/?error=google_userinfo_failed")
+
+        info       = userinfo_resp.json()
+        email      = info.get('email')
+        first_name = info.get('given_name', '')
+        last_name  = info.get('family_name', '')
+        google_id  = info.get('sub')
+
+        if not email:
+            return redirect(f"{settings.FRONTEND_URL}/?error=no_email")
+
+        # 3. Buscar o crear usuario en nuestra BD
+        user, created = Usuario.objects.get_or_create(
+            email=email,
+            defaults={
+                'username':   email.split('@')[0],
+                'first_name': first_name,
+                'last_name':  last_name,
+                'rol':        'alumno',
+            }
+        )
+
+        # Evitar username duplicado
+        if created:
+            base = email.split('@')[0]
+            if Usuario.objects.filter(username=base).exclude(pk=user.pk).exists():
+                user.username = f"{base}_{google_id[:6]}"
+                user.save()
+
+        # 4. Generar JWT propios
+        refresh = RefreshToken.for_user(user)
+
+        # 5. Redirigir al frontend con los tokens
+        params = urllib.parse.urlencode({
+            'access':  str(refresh.access_token),
+            'refresh': str(refresh),
+        })
+        return redirect(f"{settings.FRONTEND_URL}/google-callback?{params}")
 
 
 # ─── USUARIOS ────────────────────────────────────────────────────────────────
@@ -80,7 +176,6 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='guardar-tarjeta')
     def guardar_tarjeta(self, request):
-        """Guarda los últimos 4 dígitos de la tarjeta del usuario."""
         serializer = GuardarTarjetaSerializer(data=request.data)
         if serializer.is_valid():
             serializer.update(request.user, serializer.validated_data)
@@ -103,8 +198,6 @@ class ProductoViewSet(viewsets.ModelViewSet):
         return Producto.objects.filter(disponible=True)
 
     def get_permissions(self):
-        # Lectura: cualquier usuario autenticado
-        # Escritura (crear/editar/borrar): empleados Y admins
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsEmpleadoOrAdmin()]
         return [permissions.IsAuthenticated()]
@@ -131,7 +224,6 @@ class PedidoViewSet(viewsets.ModelViewSet):
         serializer = CrearPedidoSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         items_data = serializer.validated_data['items']
-
         pedido = Pedido.objects.create(usuario=request.user)
         for item_data in items_data:
             producto = Producto.objects.get(id=item_data['producto_id'])
@@ -165,70 +257,44 @@ class PagoViewSet(viewsets.ModelViewSet):
     def create(self, request):
         pedido_id = request.data.get('pedido')
         metodo    = request.data.get('metodo', 'tarjeta')
-
         try:
             pedido = Pedido.objects.get(id=pedido_id, usuario=request.user)
         except Pedido.DoesNotExist:
             return Response({'error': 'Pedido no encontrado'}, status=status.HTTP_404_NOT_FOUND)
-
         if pedido.estado != 'pendiente':
             return Response({'error': 'El pedido ya fue procesado'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Pago con saldo interno
         if metodo == 'saldo':
             if request.user.saldo < pedido.total:
-                return Response(
-                    {'error': f'Saldo insuficiente. Tienes {request.user.saldo}€'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({'error': f'Saldo insuficiente. Tienes {request.user.saldo}€'}, status=400)
             request.user.saldo -= pedido.total
             request.user.save()
-
-        # Para 'guardada' y 'nueva' se asume que el cobro real lo gestiona Redsys/TPV externo
-        # Aquí registramos el pago y cambiamos el estado
-        Pago.objects.create(pedido=pedido, metodo=metodo, monto=pedido.total)
-        pedido.estado = 'pagado'
-        pedido.save()
-
-        # Generamos el QR de recogida
-        qr, _ = QRToken.objects.get_or_create(pedido=pedido)
-
-        return Response(PedidoSerializer(pedido).data, status=status.HTTP_201_CREATED)
-
-
-# ─── PAGO DIRECTO (endpoint que usa el frontend: api.pagar) ──────────────────
-class PagarPedidoView(APIView):
-    """
-    POST /api/pedidos/{id}/pagar/
-    Body: { "metodo": "guardada" | "nueva" | "saldo" }
-    Crea el Pago, actualiza el estado y genera el QR.
-    """
-    @transaction.atomic
-    def post(self, request, pedido_id):
-        metodo = request.data.get('metodo', 'guardada')
-
-        try:
-            pedido = Pedido.objects.get(id=pedido_id, usuario=request.user)
-        except Pedido.DoesNotExist:
-            return Response({'error': 'Pedido no encontrado'}, status=status.HTTP_404_NOT_FOUND)
-
-        if pedido.estado != 'pendiente':
-            return Response({'error': 'El pedido ya fue procesado'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if metodo == 'saldo':
-            if request.user.saldo < pedido.total:
-                return Response(
-                    {'error': f'Saldo insuficiente. Tienes {float(request.user.saldo):.2f}€'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            request.user.saldo -= pedido.total
-            request.user.save()
-
         Pago.objects.create(pedido=pedido, metodo=metodo, monto=pedido.total)
         pedido.estado = 'pagado'
         pedido.save()
         QRToken.objects.get_or_create(pedido=pedido)
+        return Response(PedidoSerializer(pedido).data, status=status.HTTP_201_CREATED)
 
+
+# ─── PAGAR PEDIDO DIRECTO ────────────────────────────────────────────────────
+class PagarPedidoView(APIView):
+    @transaction.atomic
+    def post(self, request, pedido_id):
+        metodo = request.data.get('metodo', 'guardada')
+        try:
+            pedido = Pedido.objects.get(id=pedido_id, usuario=request.user)
+        except Pedido.DoesNotExist:
+            return Response({'error': 'Pedido no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        if pedido.estado != 'pendiente':
+            return Response({'error': 'El pedido ya fue procesado'}, status=status.HTTP_400_BAD_REQUEST)
+        if metodo == 'saldo':
+            if request.user.saldo < pedido.total:
+                return Response({'error': f'Saldo insuficiente. Tienes {float(request.user.saldo):.2f}€'}, status=400)
+            request.user.saldo -= pedido.total
+            request.user.save()
+        Pago.objects.create(pedido=pedido, metodo=metodo, monto=pedido.total)
+        pedido.estado = 'pagado'
+        pedido.save()
+        QRToken.objects.get_or_create(pedido=pedido)
         return Response(PedidoSerializer(pedido).data, status=status.HTTP_200_OK)
 
 
@@ -249,79 +315,57 @@ class ValidarQRView(APIView):
             qr.pedido.estado = 'entregado'
             qr.pedido.save()
             return Response({
-                'mensaje':  'Pedido entregado correctamente',
+                'mensaje':   'Pedido entregado correctamente',
                 'pedido_id': qr.pedido.id,
-                'alumno':   qr.pedido.usuario.get_full_name() or qr.pedido.usuario.username,
-                'estado':   'entregado'
+                'alumno':    qr.pedido.usuario.get_full_name() or qr.pedido.usuario.username,
+                'estado':    'entregado'
             })
         except QRToken.DoesNotExist:
             return Response({'error': 'Código QR no válido'}, status=status.HTTP_404_NOT_FOUND)
 
 
-# ─── ESTADÍSTICAS (F7) ───────────────────────────────────────────────────────
+# ─── ESTADÍSTICAS ────────────────────────────────────────────────────────────
 class EstadisticasView(APIView):
-    """
-    GET /api/estadisticas/
-    Params opcionales: fecha_inicio=YYYY-MM-DD & fecha_fin=YYYY-MM-DD
-    Devuelve: ventas totales, pedidos por estado, top productos, ingresos diarios.
-    """
     permission_classes = [IsEmpleadoOrAdmin]
 
     def get(self, request):
-        # ── Filtro por fechas ──
         fecha_inicio_str = request.query_params.get('fecha_inicio')
         fecha_fin_str    = request.query_params.get('fecha_fin')
-
         qs = Pedido.objects.filter(estado__in=['pagado', 'listo', 'entregado'])
-
         if fecha_inicio_str:
-            fecha_inicio = parse_date(fecha_inicio_str)
-            if fecha_inicio:
-                qs = qs.filter(creado__date__gte=fecha_inicio)
-
+            fi = parse_date(fecha_inicio_str)
+            if fi: qs = qs.filter(creado__date__gte=fi)
         if fecha_fin_str:
-            fecha_fin = parse_date(fecha_fin_str)
-            if fecha_fin:
-                qs = qs.filter(creado__date__lte=fecha_fin)
+            ff = parse_date(fecha_fin_str)
+            if ff: qs = qs.filter(creado__date__lte=ff)
 
-        # ── Métricas globales ──
         total_ventas  = qs.aggregate(total=Sum('total'))['total'] or 0
         total_pedidos = qs.count()
         ticket_medio  = float(total_ventas) / total_pedidos if total_pedidos > 0 else 0
 
-        # ── Pedidos por estado (todos los estados) ──
         pedidos_por_estado = list(
-            Pedido.objects.values('estado')
-            .annotate(cantidad=Count('id'))
-            .order_by('estado')
+            Pedido.objects.values('estado').annotate(cantidad=Count('id')).order_by('estado')
         )
-
-        # ── Top 5 productos más vendidos ──
-        from django.db.models import F
         top_productos = list(
             ItemPedido.objects.filter(pedido__in=qs)
             .values('producto__nombre')
             .annotate(total_vendido=Sum('cantidad'))
             .order_by('-total_vendido')[:5]
         )
-
-        # ── Ingresos por día (últimos 30 días o rango seleccionado) ──
         from django.db.models.functions import TruncDate
         ingresos_diarios = list(
             qs.annotate(dia=TruncDate('creado'))
-            .values('dia')
-            .annotate(total=Sum('total'), pedidos=Count('id'))
+            .values('dia').annotate(total=Sum('total'), pedidos=Count('id'))
             .order_by('dia')
         )
-        # Convertimos las fechas a string para JSON
         for row in ingresos_diarios:
             row['dia'] = str(row['dia'])
 
         return Response({
             'resumen': {
-                'total_ventas':   float(total_ventas),
-                'total_pedidos':  total_pedidos,
-                'ticket_medio':   round(ticket_medio, 2),
+                'total_ventas':    float(total_ventas),
+                'total_pedidos':   total_pedidos,
+                'ticket_medio':    round(ticket_medio, 2),
                 'total_productos': Producto.objects.count(),
             },
             'pedidos_por_estado': pedidos_por_estado,

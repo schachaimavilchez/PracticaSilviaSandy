@@ -1,19 +1,3 @@
-"""
-URL configuration for core project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/6.0/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -23,7 +7,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from cafeteria.views import (
     LoginView, RegisterView, UsuarioViewSet,
     ProductoViewSet, PedidoViewSet, PagoViewSet,
-    ValidarQRView, EstadisticasView, PagarPedidoView
+    ValidarQRView, EstadisticasView, PagarPedidoView,
+    GoogleLoginRedirectView, GoogleCallbackView
 )
 
 router = DefaultRouter()
@@ -35,19 +20,21 @@ router.register('pagos',     PagoViewSet)
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-    # Auth
+    # Auth normal
     path('api/auth/login/',    LoginView.as_view()),
     path('api/auth/register/', RegisterView.as_view()),
     path('api/auth/refresh/',  TokenRefreshView.as_view()),
 
-    # QR y estadísticas
-    path('api/qr/validar/',       ValidarQRView.as_view()),
-    path('api/estadisticas/',     EstadisticasView.as_view()),
+    # Google SSO
+    path('api/auth/google/',            GoogleLoginRedirectView.as_view()),
+    path('api/auth/google/callback/',   GoogleCallbackView.as_view()),
 
-    # Pagar un pedido concreto (usado por el frontend)
+    # QR, estadísticas y pago directo
+    path('api/qr/validar/',                    ValidarQRView.as_view()),
+    path('api/estadisticas/',                  EstadisticasView.as_view()),
     path('api/pedidos/<int:pedido_id>/pagar/', PagarPedidoView.as_view()),
 
-    # Router (usuarios, productos, pedidos, pagos)
+    # Router
     path('api/', include(router.urls)),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

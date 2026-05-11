@@ -8,7 +8,8 @@ from cafeteria.views import (
     LoginView, RegisterView, UsuarioViewSet,
     ProductoViewSet, PedidoViewSet, PagoViewSet,
     ValidarQRView, EstadisticasView, PagarPedidoView,
-    GoogleLoginRedirectView, GoogleCallbackView
+    GoogleLoginRedirectView, GoogleCallbackView,
+    RedsysNotificacionView,
 )
 
 router = DefaultRouter()
@@ -26,8 +27,11 @@ urlpatterns = [
     path('api/auth/refresh/',  TokenRefreshView.as_view()),
 
     # Google SSO
-    path('api/auth/google/',            GoogleLoginRedirectView.as_view()),
-    path('api/auth/google/callback/',   GoogleCallbackView.as_view()),
+    path('api/auth/google/',          GoogleLoginRedirectView.as_view()),
+    path('api/auth/google/callback/', GoogleCallbackView.as_view()),
+
+    # Redsys IPN simulada
+    path('api/redsys/notificacion/',  RedsysNotificacionView.as_view()),
 
     # QR, estadísticas y pago directo
     path('api/qr/validar/',                    ValidarQRView.as_view()),

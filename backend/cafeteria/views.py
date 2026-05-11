@@ -72,10 +72,6 @@ class RegisterView(APIView):
 
 # ─── GOOGLE SSO ───────────────────────────────────────────────────────────────
 class GoogleLoginRedirectView(APIView):
-    """
-    GET /api/auth/google/
-    Redirige al usuario a la pantalla de consentimiento de Google.
-    """
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
@@ -92,11 +88,6 @@ class GoogleLoginRedirectView(APIView):
 
 
 class GoogleCallbackView(APIView):
-    """
-    GET /api/auth/google/callback/
-    Google redirige aquí con un code. Lo intercambiamos por tokens,
-    creamos o recuperamos el usuario y redirigimos al frontend con JWT.
-    """
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
@@ -104,7 +95,6 @@ class GoogleCallbackView(APIView):
         if not code:
             return redirect(f"{settings.FRONTEND_URL}/?error=google_auth_failed")
 
-        # 1. Intercambiar code por access_token de Google
         token_resp = requests.post('https://oauth2.googleapis.com/token', data={
             'code':          code,
             'client_id':     settings.GOOGLE_CLIENT_ID,
@@ -118,7 +108,6 @@ class GoogleCallbackView(APIView):
 
         access_token = token_resp.json().get('access_token')
 
-        # 2. Obtener datos del usuario desde Google
         userinfo_resp = requests.get(
             'https://www.googleapis.com/oauth2/v3/userinfo',
             headers={'Authorization': f'Bearer {access_token}'}
@@ -136,7 +125,6 @@ class GoogleCallbackView(APIView):
         if not email:
             return redirect(f"{settings.FRONTEND_URL}/?error=no_email")
 
-        # 3. Buscar o crear usuario en nuestra BD
         user, created = Usuario.objects.get_or_create(
             email=email,
             defaults={
@@ -147,22 +135,73 @@ class GoogleCallbackView(APIView):
             }
         )
 
-        # Evitar username duplicado
         if created:
             base = email.split('@')[0]
             if Usuario.objects.filter(username=base).exclude(pk=user.pk).exists():
                 user.username = f"{base}_{google_id[:6]}"
                 user.save()
 
-        # 4. Generar JWT propios
         refresh = RefreshToken.for_user(user)
-
-        # 5. Redirigir al frontend con los tokens
-        params = urllib.parse.urlencode({
+        params  = urllib.parse.urlencode({
             'access':  str(refresh.access_token),
             'refresh': str(refresh),
         })
         return redirect(f"{settings.FRONTEND_URL}/google-callback?{params}")
+
+
+# ─── REDSYS IPN SIMULADA ─────────────────────────────────────────────────────
+class RedsysNotificacionView(APIView):
+    """
+    POST /api/redsys/notificacion/
+    Simula la notificación IPN que Redsys envía al backend tras un pago.
+    En un entorno real, este endpoint lo llamaría el servidor de Redsys
+    con una firma HMAC-SHA256 para verificar la autenticidad.
+    Aquí lo llama el frontend directamente tras la confirmación del usuario.
+    ds_response '0000' = pago autorizado.
+    """
+    @transaction.atomic
+    def post(self, request):
+        pedido_id   = request.data.get('pedido_id')
+        ds_response = str(request.data.get('ds_response', '9999'))
+
+        # Código de respuesta Redsys: 0000-0099 = autorizado
+        try:
+            codigo = int(ds_response)
+            autorizado = 0 <= codigo <= 99
+        except (ValueError, TypeError):
+            autorizado = False
+
+        if not autorizado:
+            return Response(
+                {'error': f'Pago rechazado por Redsys (código {ds_response})'},
+                status=status.HTTP_402_PAYMENT_REQUIRED
+            )
+
+        try:
+            pedido = Pedido.objects.get(id=pedido_id)
+        except Pedido.DoesNotExist:
+            return Response({'error': 'Pedido no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        if pedido.estado != 'pendiente':
+            # Ya fue procesado — devolvemos el estado actual sin error
+            qr = getattr(pedido, 'qr', None)
+            return Response({
+                **PedidoSerializer(pedido).data,
+                'codigo_qr':     qr.codigo if qr else None,
+                'nombre_usuario': pedido.usuario.get_full_name() or pedido.usuario.username,
+            })
+
+        # Registrar el pago
+        Pago.objects.create(pedido=pedido, metodo='redsys', monto=pedido.total)
+        pedido.estado = 'pagado'
+        pedido.save()
+
+        # Generar QR de recogida
+        qr, _ = QRToken.objects.get_or_create(pedido=pedido)
+
+        data = PedidoSerializer(pedido).data
+        data['nombre_usuario'] = pedido.usuario.get_full_name() or pedido.usuario.username
+        return Response(data, status=status.HTTP_200_OK)
 
 
 # ─── USUARIOS ────────────────────────────────────────────────────────────────

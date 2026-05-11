@@ -82,6 +82,7 @@ class ItemPedido(models.Model):
 
 class Pago(models.Model):
     METODOS = [
+        ('redsys',   'Redsys TPV'),
         ('tarjeta',  'Tarjeta'),
         ('guardada', 'Tarjeta guardada'),
         ('nueva',    'Tarjeta nueva'),

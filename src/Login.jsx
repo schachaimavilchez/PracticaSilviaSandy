@@ -57,7 +57,7 @@ const styles = `
   .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 `;
 
-const GOOGLE_AUTH_URL = 'http://localhost:8000/api/auth/google/';
+const GOOGLE_AUTH_URL = `${import.meta.env.VITE_API_URL?.replace('/api', '')}/api/auth/google/`;
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18">

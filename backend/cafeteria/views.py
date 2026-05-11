@@ -11,7 +11,6 @@ from .serializers import (
     CrearPedidoSerializer, PagoSerializer, QRTokenSerializer, ItemPedidoSerializer
 )
 
-
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -28,7 +27,6 @@ class LoginView(APIView):
             })
         return Response({'error': 'Credenciales incorrectas'}, status=status.HTTP_401_UNAUTHORIZED)
 
-
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -44,7 +42,6 @@ class RegisterView(APIView):
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
@@ -53,23 +50,26 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     def me(self, request):
         return Response(UsuarioSerializer(request.user).data)
 
-
 class ProductoViewSet(viewsets.ModelViewSet):
-    queryset = Producto.objects.filter(disponible=True)
+    # CORRECCIÓN: Se añade el queryset base
+    queryset = Producto.objects.all()
     serializer_class = ProductoSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        # Admin y empleados ven todo, alumnos solo disponibles
+        if user.is_authenticated and (user.is_staff or user.rol == 'empleado'):
+            return Producto.objects.all()
+        return Producto.objects.filter(disponible=True)
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [permissions.IsAdminUser()]
         return [permissions.IsAuthenticated()]
 
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx['request'] = self.request
-        return ctx
-
-
 class PedidoViewSet(viewsets.ModelViewSet):
+    # CORRECCIÓN: Se añade el queryset base
+    queryset = Pedido.objects.all()
     serializer_class = PedidoSerializer
 
     def get_queryset(self):
@@ -96,18 +96,6 @@ class PedidoViewSet(viewsets.ModelViewSet):
         pedido.calcular_total()
         return Response(PedidoSerializer(pedido).data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=['post'])
-    def cambiar_estado(self, request, pk=None):
-        pedido = self.get_object()
-        nuevo_estado = request.data.get('estado')
-        estados_validos = [e[0] for e in Pedido.ESTADOS]
-        if nuevo_estado not in estados_validos:
-            return Response({'error': 'Estado inválido'}, status=status.HTTP_400_BAD_REQUEST)
-        pedido.estado = nuevo_estado
-        pedido.save()
-        return Response(PedidoSerializer(pedido).data)
-
-
 class PagoViewSet(viewsets.ModelViewSet):
     queryset = Pago.objects.all()
     serializer_class = PagoSerializer
@@ -116,6 +104,7 @@ class PagoViewSet(viewsets.ModelViewSet):
     def create(self, request):
         pedido_id = request.data.get('pedido')
         metodo = request.data.get('metodo', 'tarjeta')
+        
         try:
             pedido = Pedido.objects.get(id=pedido_id, usuario=request.user)
         except Pedido.DoesNotExist:
@@ -124,36 +113,30 @@ class PagoViewSet(viewsets.ModelViewSet):
         if pedido.estado != 'pendiente':
             return Response({'error': 'El pedido ya fue pagado'}, status=status.HTTP_400_BAD_REQUEST)
 
+        if metodo == 'saldo':
+            if request.user.saldo < pedido.total:
+                return Response({'error': f'Saldo insuficiente. Tienes {request.user.saldo}€'}, status=400)
+            request.user.saldo -= pedido.total
+            request.user.save()
+
         pago = Pago.objects.create(pedido=pedido, metodo=metodo, monto=pedido.total)
         pedido.estado = 'pagado'
         pedido.save()
-        qr = QRToken.objects.create(pedido=pedido)
+        QRToken.objects.create(pedido=pedido)
 
-        return Response({
-            'pago': PagoSerializer(pago).data,
-            'qr': QRTokenSerializer(qr).data,
-            'pedido': PedidoSerializer(pedido).data
-        }, status=status.HTTP_201_CREATED)
-
+        return Response(PedidoSerializer(pedido).data, status=status.HTTP_201_CREATED)
 
 class ValidarQRView(APIView):
     def post(self, request):
         codigo = request.data.get('codigo', '').upper()
         try:
             qr = QRToken.objects.get(codigo=codigo)
+            if qr.usado:
+                return Response({'mensaje': 'Código ya usado'}, status=400)
+            qr.usado = True
+            qr.save()
+            qr.pedido.estado = 'entregado'
+            qr.pedido.save()
+            return Response({'mensaje': 'Pedido entregado'})
         except QRToken.DoesNotExist:
-            return Response({'valido': False, 'mensaje': 'Código no encontrado'}, status=404)
-
-        if qr.usado:
-            return Response({'valido': False, 'mensaje': 'Código ya utilizado'})
-
-        qr.usado = True
-        qr.save()
-        qr.pedido.estado = 'entregado'
-        qr.pedido.save()
-
-        return Response({
-            'valido': True,
-            'pedido': PedidoSerializer(qr.pedido).data,
-            'mensaje': 'Pedido entregado correctamente'
-        })
+            return Response({'mensaje': 'QR no válido'}, status=404)

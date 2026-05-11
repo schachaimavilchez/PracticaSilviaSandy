@@ -58,13 +58,9 @@ export const api = {
   cambiarEstado: (id, estado) =>
     fetch(`${BASE_URL}/pedidos/${id}/cambiar_estado/`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ estado }) }).then(handleResponse),
 
-  // ── PAGO DIRECTO ──────────────────────────────────────────────────────────
+  // ── PAGO ──────────────────────────────────────────────────────────────────
   pagar: (pedidoId, metodo = 'guardada') =>
     fetch(`${BASE_URL}/pedidos/${pedidoId}/pagar/`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ metodo }) }).then(handleResponse),
-
-  // ── REDSYS IPN SIMULADA ───────────────────────────────────────────────────
-  redsysNotificacion: (datos) =>
-    fetch(`${BASE_URL}/redsys/notificacion/`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(datos) }).then(handleResponse),
 
   // ── QR ────────────────────────────────────────────────────────────────────
   validarQR: (codigo) =>

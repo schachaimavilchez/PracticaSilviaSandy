@@ -8,7 +8,6 @@ import Pago from './Pago';
 import Confirmacion from './Confirmacion';
 import PanelEmpleado from './PanelEmpleado';
 import GoogleCallback from './GoogleCallback';
-import RedsysPago     from './RedsysPago';
 
 function App() {
   return (
@@ -21,8 +20,8 @@ function App() {
           <Route path="/pago"            element={<Pago />} />
           <Route path="/confirmacion"    element={<Confirmacion />} />
           <Route path="/empleado"        element={<PanelEmpleado />} />
+          {/* Página de retorno tras login con Google */}
           <Route path="/google-callback" element={<GoogleCallback />} />
-          <Route path="/redsys-pago"     element={<RedsysPago />} />
           <Route path="*"                element={<Navigate to="/" />} />
         </Routes>
       </Router>

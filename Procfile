@@ -1,1 +1,1 @@
-web: python backend/manage.py migrate && gunicorn --pythonpath backend core.wsgi
+web: python backend/manage.py migrate && gunicorn --pythonpath backend core.wsgi:application --bind 0.0.0.0:$PORT

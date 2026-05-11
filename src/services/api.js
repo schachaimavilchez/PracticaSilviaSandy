@@ -6,13 +6,9 @@ const getHeaders = (isFormData = false) => {
   const headers = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
-  
-  // Si es FormData, el navegador debe establecer el Content-Type automáticamente
-  // incluyendo el "boundary". Si lo ponemos manual como JSON, fallará.
   if (!isFormData) {
     headers['Content-Type'] = 'application/json';
   }
-  
   return headers;
 };
 
@@ -23,13 +19,13 @@ const handleResponse = async (res) => {
     return;
   }
   if (res.status === 204) return { success: true };
-
   const data = await res.json();
   if (!res.ok) throw { status: res.status, data };
   return data;
 };
 
 export const api = {
+  // ── AUTH ──────────────────────────────────────────────────────────────────
   login: (credentials) =>
     fetch(`${BASE_URL}/auth/login/`, {
       method: 'POST',
@@ -47,6 +43,15 @@ export const api = {
   me: () =>
     fetch(`${BASE_URL}/usuarios/me/`, { headers: getHeaders() }).then(handleResponse),
 
+  // ── TARJETA GUARDADA ──────────────────────────────────────────────────────
+  guardarTarjeta: (data) =>
+    fetch(`${BASE_URL}/usuarios/guardar-tarjeta/`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    }).then(handleResponse),
+
+  // ── PRODUCTOS ─────────────────────────────────────────────────────────────
   getProductos: () =>
     fetch(`${BASE_URL}/productos/`, { headers: getHeaders() }).then(handleResponse),
 
@@ -74,8 +79,16 @@ export const api = {
       headers: getHeaders(),
     }).then(handleResponse),
 
+  // ── PEDIDOS ───────────────────────────────────────────────────────────────
   getPedidos: () =>
     fetch(`${BASE_URL}/pedidos/`, { headers: getHeaders() }).then(handleResponse),
+
+  crearPedido: (items) =>
+    fetch(`${BASE_URL}/pedidos/`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ items }),
+    }).then(handleResponse),
 
   cambiarEstado: (id, estado) =>
     fetch(`${BASE_URL}/pedidos/${id}/cambiar_estado/`, {
@@ -84,10 +97,37 @@ export const api = {
       body: JSON.stringify({ estado }),
     }).then(handleResponse),
 
+  // ── PAGO ──────────────────────────────────────────────────────────────────
+  /**
+   * Paga un pedido concreto.
+   * metodo: 'guardada' | 'nueva' | 'saldo'
+   */
+  pagar: (pedidoId, metodo = 'guardada') =>
+    fetch(`${BASE_URL}/pedidos/${pedidoId}/pagar/`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ metodo }),
+    }).then(handleResponse),
+
+  // ── QR ────────────────────────────────────────────────────────────────────
   validarQR: (codigo) =>
     fetch(`${BASE_URL}/qr/validar/`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ codigo }),
     }).then(handleResponse),
+
+  // ── ESTADÍSTICAS ──────────────────────────────────────────────────────────
+  /**
+   * Obtiene estadísticas con filtro opcional de fechas.
+   * @param {string} fechaInicio  'YYYY-MM-DD' o null
+   * @param {string} fechaFin     'YYYY-MM-DD' o null
+   */
+  getEstadisticas: (fechaInicio = null, fechaFin = null) => {
+    const params = new URLSearchParams();
+    if (fechaInicio) params.append('fecha_inicio', fechaInicio);
+    if (fechaFin)    params.append('fecha_fin',    fechaFin);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return fetch(`${BASE_URL}/estadisticas/${query}`, { headers: getHeaders() }).then(handleResponse);
+  },
 };

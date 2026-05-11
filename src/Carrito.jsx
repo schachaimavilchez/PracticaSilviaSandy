@@ -2,14 +2,16 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/authcontext';
 
+const HORAS = ['10:30', '10:45', '11:15', '11:30'];
+
 const Carrito = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
 
-  // ESTADOS PARA EL DESPLEGABLE Y EL MODAL
   const [dropdown, setDropdown] = useState(false);
-  const [modal, setModal] = useState(null); // 'perfil' o null
+  const [modal, setModal] = useState(null);
+  const [horaSeleccionada, setHoraSeleccionada] = useState('11:15');
 
   const items = location.state?.items || [];
   const total = items.reduce((acc, item) => acc + (parseFloat(item.precio) * item.cantidad), 0);
@@ -20,7 +22,7 @@ const Carrito = () => {
 
     .menu-header {
       position: sticky; top: 0; z-index: 20; background: #fff;
-      padding: 10px 5px 10px 18px; 
+      padding: 10px 5px 10px 18px;
       display: flex; justify-content: space-between;
       align-items: center; border-bottom: 1px solid #e0e0e0;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
@@ -29,7 +31,7 @@ const Carrito = () => {
     .logo-area { display: flex; align-items: center; gap: 10px; }
     .logo-area img { width: 34px; height: 34px; object-fit: contain; }
     .logo-area strong { font-size: 13px; color: #333; font-weight: 700; }
-    
+
     .dropdown-wrap { position: relative; margin-left: auto; }
     .icon-btn { background: none; border: none; cursor: pointer; color: #333; padding: 4px; display: flex; align-items: center; }
 
@@ -47,12 +49,52 @@ const Carrito = () => {
     .dropdown-item.danger { color: #ff5252; }
     .dropdown-divider { border: none; border-top: 1px solid #e0e0e0; margin: 0; }
 
-    /* Estilos del Modal (Copiados de Menu.jsx) */
     .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.65); display: flex; justify-content: center; align-items: center; z-index: 200; font-family: 'DM Sans', sans-serif; }
     .modal-box { background: white; border-radius: 22px; padding: 26px; width: 90%; max-width: 360px; }
     .modal-title { font-size: 1.3rem; font-weight: 800; margin: 0 0 18px; color: #333; }
     .btn-close { display: block; width: 100%; padding: 13px; background: #407e44; color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; margin-top: 18px; font-size: 15px; }
+
+    /* Time picker */
+    .time-picker-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .time-btn {
+      padding: 16px 10px;
+      border-radius: 16px;
+      font-size: 18px;
+      font-weight: 800;
+      border: 2px solid #e0e0e0;
+      background: #f8f8f8;
+      color: #aaa;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .time-btn:hover { border-color: #407e44; color: #407e44; background: #ebf5ec; }
+    .time-btn.selected {
+      background: #407e44;
+      color: white;
+      border-color: #407e44;
+      box-shadow: 0 4px 14px rgba(64,126,68,0.35);
+      transform: scale(1.04);
+    }
+    .time-btn .time-label { font-size: 10px; font-weight: 600; opacity: 0.7; letter-spacing: 0.5px; }
+    .time-btn.selected .time-label { opacity: 0.85; }
   `;
+
+  const horaLabel = (h) => {
+    if (h === '10:30') return 'Primer recreo';
+    if (h === '10:45') return 'Primer recreo';
+    if (h === '11:15') return 'Segundo recreo';
+    if (h === '11:30') return 'Segundo recreo';
+    return '';
+  };
 
   if (items.length === 0) {
     return (
@@ -75,12 +117,10 @@ const Carrito = () => {
           <img src="/ies_pio_baroja_logo.jpg" alt="Logo" />
           <strong>IES PÍO BAROJA</strong>
         </div>
-
         <div className="dropdown-wrap">
           <button className="icon-btn" onClick={() => setDropdown(!dropdown)}>
             <span className="material-symbols-outlined" style={{ fontSize: '30px' }}>account_circle</span>
           </button>
-
           {dropdown && (
             <div className="dropdown-menu">
               <button className="dropdown-item" onClick={() => { setDropdown(false); setModal('perfil'); }}>Mi Perfil</button>
@@ -93,30 +133,35 @@ const Carrito = () => {
       </header>
 
       <main style={{ padding: '15px 20px' }}>
-        <section className="welcome" style={{ marginTop: '10px' }}>
+        <section style={{ marginTop: '10px' }}>
           <h1 style={{ fontSize: '24px', fontWeight: '800', margin: '0' }}>¡Hola, {user?.first_name || 'Estudiante'}!</h1>
           <p style={{ color: '#666', margin: '5px 0 20px' }}>Tu Recreo Sin Esperas.</p>
         </section>
 
-        {/* Reloj y Pedido (Se mantiene igual) */}
-        <section className="pick-up-card" style={{ background: 'white', borderRadius: '24px', padding: '20px', boxShadow: '0 8px 20px rgba(0,0,0,0.06)', textAlign: 'center', marginBottom: '25px' }}>
-          <h3 style={{ fontSize: '11px', color: '#888', marginBottom: '15px', letterSpacing: '1px', fontWeight: '700' }}>ELIGE TU PICK-UP TIME</h3>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <button style={btnStyle}>10:30</button>
-              <button style={btnStyle}>10:45</button>
-            </div>
-            <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: '#ebf5ec', border: '4px solid #407e44', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#407e44' }}>11:15</div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <button style={{...btnStyle, background: '#407e44', color: 'white'}}>11:15</button>
-              <button style={btnStyle}>11:30</button>
-            </div>
+        {/* SELECTOR DE HORA FUNCIONAL */}
+        <section style={{ background: 'white', borderRadius: '24px', padding: '20px', boxShadow: '0 8px 20px rgba(0,0,0,0.06)', marginBottom: '25px' }}>
+          <h3 style={{ fontSize: '11px', color: '#888', marginBottom: '4px', letterSpacing: '1px', fontWeight: '700' }}>
+            ELIGE TU HORA DE RECOGIDA
+          </h3>
+          <p style={{ fontSize: '12px', color: '#bbb', marginTop: 0, marginBottom: '14px' }}>
+            Hora seleccionada: <strong style={{ color: '#407e44' }}>{horaSeleccionada}</strong>
+          </p>
+          <div className="time-picker-grid">
+            {HORAS.map(h => (
+              <button
+                key={h}
+                className={`time-btn ${horaSeleccionada === h ? 'selected' : ''}`}
+                onClick={() => setHoraSeleccionada(h)}
+              >
+                {h}
+                <span className="time-label">{horaLabel(h)}</span>
+              </button>
+            ))}
           </div>
         </section>
 
-        <section className="order-section">
+        {/* PEDIDO */}
+        <section>
           <h3 style={{ marginBottom: '15px', fontSize: '16px', fontWeight: '700' }}>MI PEDIDO</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '25px' }}>
             {items.map((item) => (
@@ -131,12 +176,14 @@ const Carrito = () => {
           </div>
         </section>
 
-        <button onClick={() => navigate('/pago', { state: { items, total } })} style={{ width: '100%', background: '#407e44', color: 'white', border: 'none', padding: '18px', borderRadius: '18px', fontWeight: '800', fontSize: '15px', cursor: 'pointer', marginTop: '10px', boxShadow: '0 4px 12px rgba(64, 126, 68, 0.3)' }}>
-          CONFIRMAR Y PAGAR ({total.toFixed(2)}€)
+        <button
+          onClick={() => navigate('/pago', { state: { items, total, horaRecogida: horaSeleccionada } })}
+          style={{ width: '100%', background: '#407e44', color: 'white', border: 'none', padding: '18px', borderRadius: '18px', fontWeight: '800', fontSize: '15px', cursor: 'pointer', marginTop: '10px', boxShadow: '0 4px 12px rgba(64, 126, 68, 0.3)' }}
+        >
+          CONFIRMAR Y PAGAR — {horaSeleccionada} ({total.toFixed(2)}€)
         </button>
       </main>
 
-      {/* MODAL DE PERFIL (Igual al de Menu.jsx) */}
       {modal === 'perfil' && (
         <div className="overlay" onClick={() => setModal(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
@@ -151,7 +198,5 @@ const Carrito = () => {
     </div>
   );
 };
-
-const btnStyle = { padding: '8px 14px', border: 'none', background: '#f1f3f5', borderRadius: '10px', fontWeight: '700', color: '#777', fontSize: '11px', cursor: 'pointer' };
 
 export default Carrito;

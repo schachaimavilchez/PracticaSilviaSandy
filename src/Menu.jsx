@@ -13,8 +13,7 @@ const CSS = `
   .mobile { width: 100%; max-width: 430px; background: var(--bg); min-height: 100vh; position: relative; }
   .menu-header {
     position: sticky; top: 0; z-index: 20; background: var(--white);
-    /* Forzamos padding derecho a 5px para pegarlo al borde */
-    padding: 10px 5px 10px 18px; 
+    padding: 10px 5px 10px 18px;
     display: flex; justify-content: space-between;
     align-items: center; border-bottom: 1px solid var(--border);
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
@@ -22,47 +21,28 @@ const CSS = `
   .logo-area { display: flex; align-items: center; gap: 10px; }
   .logo-area img { width: 34px; height: 34px; object-fit: contain; }
   .logo-area strong { font-size: 13px; color: var(--text); font-weight: 700; }
-  .icon-btn { 
-    background: none; border: none; cursor: pointer; color: var(--text); 
-    /* Reducimos el padding del botón para que el icono sea el borde real */
-    padding: 0px 4px; 
-    display: flex; align-items: center; 
-  }.notif-wrap { position: relative; }
+  .icon-btn { background: none; border: none; cursor: pointer; color: var(--text); padding: 0px 4px; display: flex; align-items: center; }
+  .notif-wrap { position: relative; }
   .notif-dot { position: absolute; top: 0; right: 0; width: 8px; height: 8px; background: #ff5252; border-radius: 50%; border: 1.5px solid white; }
 
-  /* Dropdown */
-  .dropdown-wrap { 
-    position: relative;
-    /* Esto lo empuja a la derecha ignorando el orden de flexbox */
-    margin-left: auto; 
-    margin-right: 0;
-  }
+  .dropdown-wrap { position: relative; margin-left: auto; margin-right: 0; }
   .dropdown-menu {
-    position: absolute; 
-    top: 42px; 
-    right: 0; /* Esto lo alinea perfectamente con el borde derecho del botón */
-    background: white;
-    border-radius: 14px; 
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-    min-width: 160px; 
-    z-index: 100; 
-    overflow: hidden; 
-    border: 1px solid var(--border);
+    position: absolute; top: 42px; right: 0; background: white;
+    border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    min-width: 160px; z-index: 100; overflow: hidden; border: 1px solid var(--border);
   }
   .dropdown-item {
     display: block; padding: 12px 16px; font-size: 14px; color: var(--text);
     cursor: pointer; background: none; border: none; width: 100%; text-align: left;
-    text-decoration: none;
+    text-decoration: none; font-family: 'DM Sans', sans-serif;
   }
   .dropdown-item:hover { background: var(--light-green); color: var(--green); }
   .dropdown-item.danger { color: #ff5252; }
   .dropdown-divider { border: none; border-top: 1px solid var(--border); margin: 0; }
 
-  /* Content */
   .menu-content { padding: 16px 16px 100px; }
   .menu-title { font-size: 26px; font-weight: 800; color: var(--green); text-align: center; margin: 10px 0 18px; }
 
-  /* Cards */
   .product-card { background: var(--white); border-radius: 16px; overflow: hidden; margin-bottom: 14px; border: 1px solid var(--border); }
   .product-img { height: 140px; position: relative; }
   .product-img img { width: 100%; height: 100%; object-fit: cover; }
@@ -75,7 +55,6 @@ const CSS = `
   .qty-btn { width: 30px; height: 30px; background: var(--light-green); color: var(--green); border: none; border-radius: 8px; font-size: 18px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .qty-num { font-weight: 700; font-size: 16px; min-width: 20px; text-align: center; }
 
-  /* Bottom bar */
   .bottom-bar {
     position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
     width: 100%; max-width: 430px; background: var(--white);
@@ -86,23 +65,47 @@ const CSS = `
     display: block; background: var(--green); color: white; text-align: center;
     padding: 15px; border-radius: 14px; font-weight: 700; font-size: 16px;
     text-decoration: none; cursor: pointer; border: none; width: 100%;
-    transition: background 0.2s;
+    transition: background 0.2s; font-family: 'DM Sans', sans-serif;
   }
   .btn-continuar:hover { background: #356838; }
   .btn-continuar:disabled { background: #ccc; cursor: not-allowed; }
   .cart-badge { background: white; color: var(--green); border-radius: 12px; padding: 2px 8px; font-size: 13px; margin-left: 8px; font-weight: 800; }
 
-  /* Modal perfil/pedidos/ajustes */
   .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.65); display: flex; justify-content: center; align-items: center; z-index: 200; }
-  .modal-box { background: white; border-radius: 22px; padding: 26px; width: 90%; max-width: 360px; max-height: 80vh; overflow-y: auto; }
+  .modal-box { background: white; border-radius: 22px; padding: 26px; width: 90%; max-width: 380px; max-height: 85vh; overflow-y: auto; }
   .modal-title { font-size: 1.3rem; font-weight: 800; margin: 0 0 18px; color: var(--text); }
-  .btn-close { display: block; width: 100%; padding: 13px; background: var(--green); color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; margin-top: 18px; font-size: 15px; }
-  .pedido-card { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 10px; overflow: hidden; }
+  .btn-close { display: block; width: 100%; padding: 13px; background: var(--green); color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; margin-top: 18px; font-size: 15px; font-family: 'DM Sans', sans-serif; }
+
+  /* Pedidos */
+  .pedido-card { border: 1px solid var(--border); border-radius: 14px; margin-bottom: 12px; overflow: hidden; }
   .pedido-header { padding: 13px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
   .pedido-body { padding: 13px; background: #fafafa; border-top: 1px dashed var(--border); font-size: 13px; }
-  .pedido-line { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .pedido-line { display: flex; justify-content: space-between; margin-bottom: 6px; }
+
+  /* QR del pedido */
+  .pedido-qr-box {
+    margin-top: 14px; padding: 14px; background: white;
+    border-radius: 12px; border: 1px dashed #ccc;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .pedido-qr-img { width: 120px; height: 120px; }
+  .pedido-qr-codigo {
+    font-size: 20px; font-weight: 900; letter-spacing: 4px; color: var(--text);
+  }
+  .pedido-qr-label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+  .estado-pill {
+    display: inline-block; padding: 3px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+  }
+  .estado-pendiente { background: #fff3cd; color: #856404; }
+  .estado-pagado    { background: #d1fae5; color: #065f46; }
+  .estado-entregado { background: #e0e7ff; color: #3730a3; }
+  .estado-cancelado { background: #fee2e2; color: #991b1b; }
+
   .loading { text-align: center; padding: 40px; color: #aaa; font-size: 15px; }
   .empty { text-align: center; padding: 40px; color: #bbb; }
+
+  /* Ajustes */
   .switch { position: relative; display: inline-block; width: 42px; height: 22px; }
   .switch input { opacity: 0; width: 0; height: 0; }
   .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; border-radius: 22px; transition: .3s; }
@@ -110,13 +113,18 @@ const CSS = `
   input:checked + .slider { background: var(--green); }
   input:checked + .slider:before { transform: translateX(20px); }
   .ajuste-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border); }
-  .btn-danger { color: #ff5252; background: none; border: 1px solid #ff5252; padding: 10px; border-radius: 10px; cursor: pointer; width: 100%; font-weight: 700; margin-top: 16px; }
+  .btn-danger { color: #ff5252; background: none; border: 1px solid #ff5252; padding: 10px; border-radius: 10px; cursor: pointer; width: 100%; font-weight: 700; margin-top: 16px; font-family: 'DM Sans', sans-serif; }
 `;
 
 const PLACEHOLDER_IMGS = {
   'panBaconQueso.jpg': '/panBaconQueso.jpg',
   'pincho.jpg': '/pincho.jpg',
   'napolitana.jpg': '/napolitana.jpg',
+};
+
+const estadoPillClass = (estado) => {
+  const map = { pendiente: 'estado-pendiente', pagado: 'estado-pagado', entregado: 'estado-entregado', cancelado: 'estado-cancelado' };
+  return `estado-pill ${map[estado] || 'estado-pendiente'}`;
 };
 
 export default function Menu() {
@@ -150,7 +158,7 @@ export default function Menu() {
       .finally(() => setLoadingPedidos(false));
   };
 
-  const addToCart = (id) => setCart(c => ({ ...c, [id]: (c[id] || 0) + 1 }));
+  const addToCart    = (id) => setCart(c => ({ ...c, [id]: (c[id] || 0) + 1 }));
   const removeFromCart = (id) => setCart(c => {
     const n = { ...c };
     if (n[id] <= 1) delete n[id];
@@ -162,19 +170,11 @@ export default function Menu() {
 
   const irAlCarrito = () => {
     if (!totalItems || productos.length === 0) return;
-    
-    try {
-      const itemsParaCarrito = Object.entries(cart).map(([id, cantidad]) => {
-        const producto = productos.find(p => p.id === Number(id));
-        // Si por lo que sea no encuentra el producto, devolvemos un objeto vacío para evitar el crash
-        return producto ? { ...producto, cantidad } : null;
-      }).filter(item => item !== null); // Limpiamos los nulos
-
-      console.log("Enviando al carrito:", itemsParaCarrito);
-      navigate('/carrito', { state: { items: itemsParaCarrito } });
-    } catch (error) {
-      console.error("Error al navegar al carrito:", error);
-    }
+    const itemsParaCarrito = Object.entries(cart).map(([id, cantidad]) => {
+      const producto = productos.find(p => p.id === Number(id));
+      return producto ? { ...producto, cantidad } : null;
+    }).filter(Boolean);
+    navigate('/carrito', { state: { items: itemsParaCarrito } });
   };
 
   return (
@@ -182,6 +182,7 @@ export default function Menu() {
       <style>{CSS}</style>
       <div className="menu-root">
         <div className="mobile">
+
           {/* Header */}
           <header className="menu-header">
             <div className="logo-area">
@@ -224,7 +225,7 @@ export default function Menu() {
                     <img
                       src={p.imagen_url || PLACEHOLDER_IMGS[p.nombre] || `https://placehold.co/400x140/98d361/white?text=${encodeURIComponent(p.nombre)}`}
                       alt={p.nombre}
-                      onError={(e) => { e.target.src = `https://placehold.co/400x140/98d361/white?text=${encodeURIComponent(p.nombre)}`; }}
+                      onError={e => { e.target.src = `https://placehold.co/400x140/98d361/white?text=${encodeURIComponent(p.nombre)}`; }}
                     />
                     <div className="img-overlay">{p.nombre}</div>
                   </div>
@@ -248,15 +249,13 @@ export default function Menu() {
           {/* Bottom bar */}
           <div className="bottom-bar">
             <button className="btn-continuar" onClick={irAlCarrito} disabled={!totalItems}>
-              {totalItems ? (
-                <>Ver Carrito <span className="cart-badge">{totalItems}</span></>
-              ) : 'Añade algo al pedido'}
+              {totalItems ? (<>Ver Carrito <span className="cart-badge">{totalItems}</span></>) : 'Añade algo al pedido'}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Modal Perfil */}
+      {/* ── Modal Perfil ── */}
       {modal === 'perfil' && (
         <div className="overlay" onClick={() => setModal(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
@@ -264,12 +263,17 @@ export default function Menu() {
             <p><strong>Nombre:</strong> {user?.first_name} {user?.last_name}</p>
             <p style={{ marginTop: 8 }}><strong>Usuario:</strong> {user?.username}</p>
             <p style={{ marginTop: 8 }}><strong>Saldo:</strong> {parseFloat(user?.saldo || 0).toFixed(2)}€</p>
+            {user?.tarjeta && (
+              <p style={{ marginTop: 8 }}>
+                <strong>Tarjeta guardada:</strong> {user.tarjeta.numero} · {user.tarjeta.expiry}
+              </p>
+            )}
             <button className="btn-close" onClick={() => setModal(null)}>Cerrar</button>
           </div>
         </div>
       )}
 
-      {/* Modal Pedidos */}
+      {/* ── Modal Mis Pedidos ── */}
       {modal === 'pedidos' && (
         <div className="overlay" onClick={() => setModal(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
@@ -283,19 +287,49 @@ export default function Menu() {
                 <div className="pedido-card" key={p.id}>
                   <div className="pedido-header" onClick={() => setExpandido(expandido === p.id ? null : p.id)}>
                     <div>
-                      <strong>{new Date(p.creado).toLocaleDateString('es-ES')} — {new Date(p.creado).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}h</strong>
-                      <div style={{ fontSize: 12, color: '#888' }}>#{p.id} · {p.estado}</div>
+                      <strong>
+                        {new Date(p.creado).toLocaleDateString('es-ES')} —{' '}
+                        {new Date(p.creado).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}h
+                      </strong>
+                      <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                        #{p.id} · <span className={estadoPillClass(p.estado)}>{p.estado}</span>
+                      </div>
                     </div>
-                    <span style={{ fontWeight: 700, color: 'var(--green)' }}>{parseFloat(p.total).toFixed(2)}€ ▾</span>
+                    <span style={{ fontWeight: 700, color: 'var(--green)' }}>
+                      {parseFloat(p.total).toFixed(2)}€ {expandido === p.id ? '▴' : '▾'}
+                    </span>
                   </div>
+
                   {expandido === p.id && (
                     <div className="pedido-body">
+                      {/* Líneas de productos */}
                       {p.items?.map(item => (
                         <div className="pedido-line" key={item.id}>
-                          <span>{item.cantidad}x {item.nombre_producto}</span>
+                          <span>{item.cantidad}× {item.nombre_producto}</span>
                           <span>{parseFloat(item.subtotal).toFixed(2)}€</span>
                         </div>
                       ))}
+
+                      {/* QR de recogida — solo si el pedido está pagado o listo */}
+                      {(p.estado === 'pagado' || p.estado === 'listo') && p.codigo_qr && (
+                        <div className="pedido-qr-box">
+                          <p className="pedido-qr-label">Código de recogida</p>
+                          <img
+                            className="pedido-qr-img"
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${p.codigo_qr}`}
+                            alt="QR recogida"
+                          />
+                          <span className="pedido-qr-codigo">{p.codigo_qr}</span>
+                          <p className="pedido-qr-label">Muéstralo en la cafetería</p>
+                        </div>
+                      )}
+
+                      {/* Si ya fue entregado */}
+                      {p.estado === 'entregado' && (
+                        <div style={{ marginTop: 12, textAlign: 'center', color: '#065f46', fontWeight: 700, fontSize: 13 }}>
+                          ✓ Pedido recogido
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -306,7 +340,7 @@ export default function Menu() {
         </div>
       )}
 
-      {/* Modal Ajustes */}
+      {/* ── Modal Ajustes ── */}
       {modal === 'ajustes' && (
         <div className="overlay" onClick={() => setModal(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
@@ -326,7 +360,7 @@ export default function Menu() {
               </label>
             </div>
             <button className="btn-danger" onClick={() => {
-              if (confirm('¿Desactivar cuenta?')) { logout(); navigate('/'); }
+              if (window.confirm('¿Desactivar cuenta?')) { logout(); navigate('/'); }
             }}>Desactivar Cuenta</button>
             <button className="btn-close" onClick={() => setModal(null)}>Guardar y Salir</button>
           </div>

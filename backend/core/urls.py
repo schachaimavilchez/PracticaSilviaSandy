@@ -22,20 +22,32 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from cafeteria.views import (
     LoginView, RegisterView, UsuarioViewSet,
-    ProductoViewSet, PedidoViewSet, PagoViewSet, ValidarQRView
+    ProductoViewSet, PedidoViewSet, PagoViewSet,
+    ValidarQRView, EstadisticasView, PagarPedidoView
 )
 
 router = DefaultRouter()
-router.register('usuarios', UsuarioViewSet)
+router.register('usuarios',  UsuarioViewSet)
 router.register('productos', ProductoViewSet)
-router.register('pedidos', PedidoViewSet, basename='pedidos')
-router.register('pagos', PagoViewSet)
+router.register('pedidos',   PedidoViewSet, basename='pedidos')
+router.register('pagos',     PagoViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/auth/login/', LoginView.as_view()),
+
+    # Auth
+    path('api/auth/login/',    LoginView.as_view()),
     path('api/auth/register/', RegisterView.as_view()),
-    path('api/auth/refresh/', TokenRefreshView.as_view()),
-    path('api/qr/validar/', ValidarQRView.as_view()),
+    path('api/auth/refresh/',  TokenRefreshView.as_view()),
+
+    # QR y estadísticas
+    path('api/qr/validar/',       ValidarQRView.as_view()),
+    path('api/estadisticas/',     EstadisticasView.as_view()),
+
+    # Pagar un pedido concreto (usado por el frontend)
+    path('api/pedidos/<int:pedido_id>/pagar/', PagarPedidoView.as_view()),
+
+    # Router (usuarios, productos, pedidos, pagos)
     path('api/', include(router.urls)),
+
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

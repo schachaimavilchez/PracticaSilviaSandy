@@ -2,7 +2,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../services/api';
 
-// 1. Iniciamos con un objeto vacío en lugar de null para evitar el error de desestructuración
 const AuthContext = createContext({});
 
 export function AuthProvider({ children }) {
@@ -14,12 +13,12 @@ export function AuthProvider({ children }) {
       const token = localStorage.getItem('access_token');
       if (token) {
         try {
-          // Intentamos recuperar al usuario de Django
           const userData = await api.me();
           setUser(userData);
         } catch (error) {
           console.error("Error de autenticación inicial:", error);
-          localStorage.clear();
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
         }
       }
       setLoading(false);
@@ -36,25 +35,46 @@ export function AuthProvider({ children }) {
       return data.user;
     } catch (error) {
       console.error("Error en el login:", error);
-      throw error; // Re-lanzamos para que el componente Login pueda mostrar el error
+      throw error;
     }
   };
 
   const logout = () => {
-      localStorage.clear();
-      setUser(null);
-      window.location.href = '/'; 
-    };
+    localStorage.clear();
+    setUser(null);
+    window.location.href = '/';
+  };
 
-    // ESTA ES LA PARTE QUE DEBES CAMBIAR:
+  // Mientras verifica el token mostramos un loader mínimo
+  // en lugar de null para evitar el parpadeo en blanco
+  if (loading) {
     return (
-      <AuthContext.Provider value={{ user, login, logout, loading }}>
-        {children} 
-      </AuthContext.Provider>
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #98d361 0%, #a6a6a6 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <div style={{
+          width: 48, height: 48,
+          border: '5px solid rgba(255,255,255,0.4)',
+          borderTopColor: 'white',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
     );
   }
 
-// 3. Hook personalizado con validación de seguridad
+  return (
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

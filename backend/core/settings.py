@@ -114,3 +114,8 @@ LANGUAGE_CODE = 'es-es'
 TIME_ZONE     = 'Europe/Madrid'
 USE_I18N      = True
 USE_TZ        = True
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://practicasilviasandy-production.up.railway.app',
+    'https://practica-silvia-sandy.vercel.app',
+]

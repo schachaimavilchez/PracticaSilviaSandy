@@ -115,7 +115,9 @@ TIME_ZONE     = 'Europe/Madrid'
 USE_I18N      = True
 USE_TZ        = True
 
-CSRF_TRUSTED_ORIGINS = [
-    'https://practicasilviasandy-production.up.railway.app',
-    'https://practica-silvia-sandy.vercel.app',
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://practica-silvia-sandy.vercel.app",
+    "https://web-production-4bcaf.up.railway.app",
 ]

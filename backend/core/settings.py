@@ -121,3 +121,8 @@ CORS_ALLOWED_ORIGINS = [
     "https://practica-silvia-sandy.vercel.app",
     "https://web-production-4bcaf.up.railway.app",
 ]
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://web-production-4bcaf.up.railway.app',
+    'https://practica-silvia-sandy.vercel.app',
+]
